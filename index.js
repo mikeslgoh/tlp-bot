@@ -52,7 +52,7 @@ async function handleHelloCommand(interaction) {
 }
 
 async function handleNewEventCommand(interaction) {
-   const webhookUrl = "https://hook.us2.make.com/lkdjqxlljxiiehln95upn86vkdl9etoe"
+   const webhookUrl = process.env.WEBHOOK_URL;
 
    const payload = {
         details: interaction.options.getString("details"), 
