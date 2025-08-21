@@ -92,14 +92,14 @@ async function startBot() {
 
     const PING_INTERVAL = 14 * 60 * 1000; // Every 14 minutes
 
-    // setInterval(async () => {
-    //     try {
-    //         const response = await fetch(`${process.env.RENDER_URL}/api/health`);
-    //         console.log(`Health check successful: ${response.status}`);
-    //     } catch (error) {
-    //         console.error('Health check failed:', error.message);
-    //     }
-    // }, PING_INTERVAL);
+    setInterval(async () => {
+        try {
+            const response = await fetch(`${process.env.RENDER_URL}/api/health`);
+            console.log(`Health check successful: ${response.status}`);
+        } catch (error) {
+            console.error('Health check failed:', error.message);
+        }
+    }, PING_INTERVAL);
 
     client.login(process.env.DISCORD_BOT_TOKEN);
 }
