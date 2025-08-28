@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("discord.js");
 require("dotenv").config();
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v10");
@@ -83,15 +83,25 @@ async function handleNewEventCommand(interaction) {
             return;
         }
 
-        await interaction.editReply({ content: `✅ Event created successfully: ${resp}`, ephemeral: true });
-    }catch(error){
-        console.error("Error creating event:", error);
-        await interaction.editReply({ content: "❌ Failed to create event", ephemeral: true });
+        const button = new ButtonBuilder()
+            .setCustomId('send_to_channel')
+            .setLabel('Send to channel')
+            .setStyle(ButtonStyle.Primary);
+
+        const row = new ActionRowBuilder().addComponents(button);
+
+        await interaction.editReply({
+            content: `✅ Event created successfully: ${resp}`,
+            components: [row]
+            });
+        } catch(error){
+            console.error("Error creating event:", error);
+            await interaction.editReply({ content: "❌ Failed to create event", ephemeral: true });
     }
 }
 
 async function handleGetEventDetailsCommand(interaction) {
-try{
+    try{
         await interaction.deferReply({ ephemeral: true });
 
         const details = interaction.options.getString("event-name");
@@ -106,8 +116,18 @@ try{
             });
             return;
         }
+        const button = new ButtonBuilder()
+        .setCustomId('send_to_channel')
+        .setLabel('Send to channel')
+        .setStyle(ButtonStyle.Primary);
 
-        await interaction.editReply({ content: formatEventDetails(resp), ephemeral: true });
+        const row = new ActionRowBuilder().addComponents(button);
+
+        await interaction.editReply({
+        content: formatEventDetails(resp),
+        components: [row]
+    });
+
     }catch(error){
         console.error("Error creating event:", error);
         await interaction.editReply({ content: "❌ Failed to retrieve event.", ephemeral: true });
@@ -128,22 +148,40 @@ function formatEventDetails(resp) {
            `Link: ${event.htmlLink}`;
 }
 
+async function handleSlashCommand(interaction) {
+    const { commandName, options } = interaction;
+    if (commandName === "event") {
+        const subcommand = interaction.options.getSubcommand();
+        if (subcommand === "create") {
+            await handleNewEventCommand(interaction);
+        } else if (subcommand === "get-details") {
+            await handleGetEventDetailsCommand(interaction);
+        }
+    } else if (commandName === "hello") {
+        await handleHelloCommand(interaction);
+    }else {
+        await interaction.reply({ content: "Unknown command", ephemeral: true });
+    }
+}
+
+// --- handler for button interaction ---
+async function handleButton(interaction) {
+  if (interaction.customId === 'send_to_channel') {
+    await interaction.channel.send(interaction.message.content);
+
+    await interaction.deferUpdate();
+    await interaction.deleteReply();
+  }
+}
+
 // Handle interaction events
 function setupInteractionHandler() {
     client.on("interactionCreate", async (interaction) => {
-            const { commandName, options } = interaction;
-            if (commandName === "event") {
-                const subcommand = interaction.options.getSubcommand();
-                if (subcommand === "create") {
-                    await handleNewEventCommand(interaction);
-                } else if (subcommand === "get-details") {
-                    await handleGetEventDetailsCommand(interaction);
-                }
-            } else if (commandName === "hello") {
-                await handleHelloCommand(interaction);
-            } else {
-                await interaction.reply({ content: "Unknown command", ephemeral: true });
-            }
+        if (interaction.isChatInputCommand()) {
+            await handleSlashCommand(interaction);
+        } else if (interaction.isButton()) {
+            await handleButton(interaction);
+        }
     });
 }
 
