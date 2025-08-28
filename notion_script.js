@@ -12,10 +12,6 @@ class NotionManager {
 		try {
 			const response = await notion.pages.create({
 				parent: { database_id: NOTION_DATABASE_ID },
-				icon: {
-					type: "emoji",
-					emoji: "⛪"
-				},
 				properties: {
 					"Name": { title: [{ text: { content: event.title } }] },
 					"Dates": {
