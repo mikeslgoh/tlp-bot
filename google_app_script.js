@@ -16,7 +16,13 @@ class GoogleAppScriptManager {
     }
 
     async getEventDetails(eventName) {
-        // Logic to get event details from Google Calendar
+		try{
+			const response = await axios.get(process.env.GOOGLE_APP_SCRIPT_URL, { params: { name: eventName } });
+			return response.data;
+		} catch (error) {
+			console.error("Error getting event details:", error);
+			throw error;
+		}
     }
 
 	parseEventText(details) {

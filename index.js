@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, SlashCommandBuilder } = require("discord.js")
 require("dotenv").config();
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v10");
+const moment = require('moment');
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 const axios = require("axios");
@@ -40,7 +41,7 @@ function getCommands() {
     .addSubcommand(subcommand =>
         subcommand
         .setName('get-details')
-        .setDescription('Get details of a calendar event')
+        .setDescription('Get details of a calendar event (within the past and last 30 days)')
         .addStringOption(option =>
             option.setName('event-name')
                 .setDescription('Name of the event to retrieve')
@@ -90,7 +91,41 @@ async function handleNewEventCommand(interaction) {
 }
 
 async function handleGetEventDetailsCommand(interaction) {
+try{
+        await interaction.deferReply({ ephemeral: true });
 
+        const details = interaction.options.getString("event-name");
+
+        const googleAppScriptManager = new GoogleAppScriptManager();
+        const resp = await googleAppScriptManager.getEventDetails(details);
+
+         // Check for error in response
+        if (resp.error) {
+            await interaction.editReply({
+                content: `❌ Event retrieval failed: ${resp.error}`
+            });
+            return;
+        }
+
+        await interaction.editReply({ content: formatEventDetails(resp), ephemeral: true });
+    }catch(error){
+        console.error("Error creating event:", error);
+        await interaction.editReply({ content: "❌ Failed to retrieve event.", ephemeral: true });
+    }
+}
+
+function formatEventDetails(resp) {
+    if (resp.count > 1) {
+        return "Multiple events were found. Please be more specific.";
+    }
+
+    let event = resp.events[0];
+
+    return `📅 **${event.title}** 📅 \n` +
+           `Date: ${moment(event.start).format("MMMM D, YYYY h:mm A")} - ${moment(event.end).format("h:mm A")}\n` +
+           `Description: ${event.description}\n` +
+           `Location: ${event.location}\n` + 
+           `Link: ${event.htmlLink}`;
 }
 
 // Handle interaction events
