@@ -6,6 +6,8 @@ const { Routes } = require("discord-api-types/v10");
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 const axios = require("axios");
 
+const GoogleAppScriptManager = require("./google_app_script");
+
 // Initialize the bot client
 function initializeClient() {
     return new Client({
@@ -25,12 +27,24 @@ function getCommands() {
       .setName('hello')
       .setDescription('Say hello to our TLP Bot!'),
     new SlashCommandBuilder()
-      .setName('event')
-      .setDescription('Create a new event')
-      .addStringOption(option =>
-        option.setName('details')
-          .setDescription('Event details')
-          .setRequired(true))
+    .setName('event')
+    .setDescription('Manage calendar events')
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName('create')
+        .setDescription('Create a new calendar event')
+        .addStringOption(option =>
+            option.setName('details')
+                .setDescription('Event details')
+                .setRequired(true)))
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName('get-details')
+        .setDescription('Get details of a calendar event')
+        .addStringOption(option =>
+            option.setName('event-name')
+                .setDescription('Name of the event to retrieve')
+                .setRequired(true)))
   ];
 }
 
@@ -52,19 +66,31 @@ async function handleHelloCommand(interaction) {
 }
 
 async function handleNewEventCommand(interaction) {
-   const webhookUrl = process.env.WEBHOOK_URL;
+    try{
+        await interaction.deferReply({ ephemeral: true });
 
-   const payload = {
-        details: interaction.options.getString("details"), 
-   }
+        const details = interaction.options.getString("details");
 
-   try {
-    const response = await axios.post(webhookUrl, payload);
-    console.log('Webhook response:', response);
-    await interaction.reply({ content: `✅ Event created successfully`, ephemeral: true });
-  } catch (err) {
-    console.error('Error sending to webhook:', err);
-  }
+        const googleAppScriptManager = new GoogleAppScriptManager();
+        const resp = await googleAppScriptManager.createEvent(details);
+
+         // Check for error in response
+        if (resp.toLowerCase().includes("error")) {
+            await interaction.editReply({ 
+                content: `❌ Event creation failed: ${resp}` 
+            });
+            return;
+        }
+
+        await interaction.editReply({ content: `✅ Event created successfully: ${resp}`, ephemeral: true });
+    }catch(error){
+        console.error("Error creating event:", error);
+        await interaction.editReply({ content: "❌ Failed to create event", ephemeral: true });
+    }
+}
+
+async function handleGetEventDetailsCommand(interaction) {
+
 }
 
 // Handle interaction events
@@ -72,7 +98,12 @@ function setupInteractionHandler() {
     client.on("interactionCreate", async (interaction) => {
             const { commandName, options } = interaction;
             if (commandName === "event") {
-                handleNewEventCommand(interaction);
+                const subcommand = interaction.options.getSubcommand();
+                if (subcommand === "create") {
+                    await handleNewEventCommand(interaction);
+                } else if (subcommand === "get-details") {
+                    await handleGetEventDetailsCommand(interaction);
+                }
             } else if (commandName === "hello") {
                 await handleHelloCommand(interaction);
             } else {
