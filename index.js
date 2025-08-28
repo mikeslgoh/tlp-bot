@@ -41,7 +41,7 @@ function getCommands() {
     .addSubcommand(subcommand =>
         subcommand
         .setName('get-details')
-        .setDescription('Get details of a calendar event (within the past and last 30 days)')
+        .setDescription('Get details of a calendar event (within the next 3 months)')
         .addStringOption(option =>
             option.setName('event-name')
                 .setDescription('Name of the event to retrieve')
