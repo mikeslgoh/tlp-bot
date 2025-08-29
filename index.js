@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, SlashCommandBuilder, ButtonBuilder, ButtonSty
 require("dotenv").config();
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v10");
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 const axios = require("axios");
