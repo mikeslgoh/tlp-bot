@@ -134,12 +134,15 @@ async function handleGetEventDetailsCommand(interaction) {
         // Check for error in response
         if (resp.error) {
             let errorMsg = `❌ Event retrieval failed: ${resp.error}`;
-
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: errorMsg });
-            } else {
-                await interaction.reply({ content: errorMsg, ephemeral: true });
-            }
+            await interaction.editReply({ content: errorMsg });
+            return;
+        } else if (resp.count === 0) {
+            console.log("GET_EVENT_DETAILS: No events found!");
+            await interaction.editReply({ content: "❌ No events found.", ephemeral: true });
+            return;
+        } else if (resp.count > 1) {
+            console.log("GET_EVENT_DETAILS: More than 1 event found!");
+            await interaction.editReply({ content: "❌ Multiple events found. Please be more specific.", ephemeral: true });
             return;
         }
 
@@ -156,7 +159,6 @@ async function handleGetEventDetailsCommand(interaction) {
             content: formatEventDetails(resp),
             components: [row]
         });
-
     } catch (error) {
         console.error("Error creating event:", error);
 
@@ -167,15 +169,10 @@ async function handleGetEventDetailsCommand(interaction) {
         } else {
             await interaction.reply({ content: errorMsg, ephemeral: true });
         }
-        
     }
 }
 
 function formatEventDetails(resp) {
-    if (resp.count > 1) {
-        return "Multiple events were found. Please be more specific.";
-    }
-
     let event = resp.events[0];
 
     return `📅 **${event.title}** 📅 \n` +
@@ -186,18 +183,22 @@ function formatEventDetails(resp) {
 }
 
 async function handleSlashCommand(interaction) {
-    const { commandName, options } = interaction;
-    if (commandName === "event") {
-        const subcommand = interaction.options.getSubcommand();
-        if (subcommand === "create") {
-            await handleNewEventCommand(interaction);
-        } else if (subcommand === "get-details") {
-            await handleGetEventDetailsCommand(interaction);
+    try{
+        const { commandName, options } = interaction;
+        if (commandName === "event") {
+            const subcommand = interaction.options.getSubcommand();
+            if (subcommand === "create") {
+                await handleNewEventCommand(interaction);
+            } else if (subcommand === "get-details") {
+                await handleGetEventDetailsCommand(interaction);
+            }
+        } else if (commandName === "hello") {
+            await handleHelloCommand(interaction);
+        } else {
+            await interaction.reply({ content: "Unknown command", ephemeral: true });
         }
-    } else if (commandName === "hello") {
-        await handleHelloCommand(interaction);
-    } else {
-        await interaction.reply({ content: "Unknown command", ephemeral: true });
+    } catch (error) {
+        console.error("Error handling slash command:", error);
     }
 }
 
