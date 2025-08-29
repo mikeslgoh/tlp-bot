@@ -82,17 +82,20 @@ async function handleNewEventCommand(interaction) {
 
         // Check for error in response
         if (resp.toLowerCase().includes("error")) {
-            await interaction.editReply({
-                content: `❌ Event creation failed: ${resp}`
-            });
+            let errorMsg = `❌ Event creation failed: ${resp}`;
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: errorMsg });
+            } else {
+                await interaction.reply({ content: errorMsg, ephemeral: true });
+            }
             return;
         }
 
         console.log("CREATE_CALENDAR_EVENT: Event created on Google Calendar!")
 
         const notionManager = new NotionManager();
-        // await notionManager.syncCalendarEvent(formattedEvent, resp);
-        console.log(await notionManager.syncCalendarEvent(formattedEvent, resp));
+        await notionManager.syncCalendarEvent(formattedEvent, resp);
 
         console.log("CREATE_CALENDAR_EVENT: Event synced to Notion!")
 
@@ -109,7 +112,13 @@ async function handleNewEventCommand(interaction) {
         });
     } catch (error) {
         console.error("Error creating event:", error);
-        await interaction.editReply({ content: "❌ Failed to create event", ephemeral: true });
+
+        let errorMsg = `❌ Failed to create event`;
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: errorMsg });
+        } else {
+            await interaction.reply({ content: errorMsg, ephemeral: true });
+        }
     }
 }
 
@@ -124,9 +133,13 @@ async function handleGetEventDetailsCommand(interaction) {
 
         // Check for error in response
         if (resp.error) {
-            await interaction.editReply({
-                content: `❌ Event retrieval failed: ${resp.error}`
-            });
+            let errorMsg = `❌ Event retrieval failed: ${resp.error}`;
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: errorMsg });
+            } else {
+                await interaction.reply({ content: errorMsg, ephemeral: true });
+            }
             return;
         }
 
@@ -146,7 +159,15 @@ async function handleGetEventDetailsCommand(interaction) {
 
     } catch (error) {
         console.error("Error creating event:", error);
-        await interaction.editReply({ content: "❌ Failed to retrieve event.", ephemeral: true });
+
+        let errorMsg = `❌ Failed to retrieve event`;
+
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: errorMsg });
+        } else {
+            await interaction.reply({ content: errorMsg, ephemeral: true });
+        }
+        
     }
 }
 
