@@ -158,7 +158,7 @@ function formatEventDetails(resp) {
     let event = resp.events[0];
 
     return `📅 **${event.title}** 📅 \n` +
-        `Date: ${moment(event.start).format("MMMM D, YYYY h:mm A")} - ${moment(event.end).format("h:mm A")}\n` +
+        `Date: ${moment(event.start).tz("America/Vancouver").format("MMMM D, YYYY h:mm A")} - ${moment(event.end).tz("America/Vancouver").format("h:mm A")}\n` +
         `Description: ${event.description}\n` +
         `Location: ${event.location}\n` +
         `Link: ${event.htmlLink}`;
