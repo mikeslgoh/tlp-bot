@@ -1,6 +1,5 @@
 const { Client: NotionClient } = require('@notionhq/client');
 const notion = new NotionClient({ auth: process.env.NOTION_INTEGRATION_TOKEN });
-const axios = require("axios");
 
 const NOTION_EVENT_PROJECT_ID = process.env.NOTION_EVENT_PROJECT_ID;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;

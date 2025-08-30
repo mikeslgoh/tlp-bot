@@ -1,11 +1,10 @@
-const { Client, GatewayIntentBits, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder } = require("discord.js");
 require("dotenv").config();
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v10");
 const moment = require('moment-timezone');
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
-const axios = require("axios");
 
 const GoogleAppScriptManager = require("./google_app_script");
 const NotionManager = require("./notion_script")
@@ -148,15 +147,18 @@ async function handleGetEventDetailsCommand(interaction) {
 
         console.log("GET_EVENT_DETAILS: Event details retrieved from Google Calendar!")
 
+        const eventEmbed = formatEventDetails(resp);
+
         const button = new ButtonBuilder()
             .setCustomId('send_to_channel')
             .setLabel('Send to channel')
-            .setStyle(ButtonStyle.Primary);
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('📤');
 
         const row = new ActionRowBuilder().addComponents(button);
 
         await interaction.editReply({
-            content: formatEventDetails(resp),
+            embeds: [eventEmbed], // Use embeds instead of content
             components: [row]
         });
     } catch (error) {
@@ -175,15 +177,46 @@ async function handleGetEventDetailsCommand(interaction) {
 function formatEventDetails(resp) {
     let event = resp.events[0];
 
-    return `📅 **${event.title}** 📅 \n` +
-        `Date: ${moment(event.start).tz("America/Vancouver").format("MMMM D, YYYY h:mm A")} - ${moment(event.end).tz("America/Vancouver").format("h:mm A")}\n` +
-        `Description: ${event.description}\n` +
-        `Location: ${event.location}\n` +
-        `Link: ${event.htmlLink}`;
+    const startTime = moment(event.start).tz("America/Vancouver");
+    const endTime = moment(event.end).tz("America/Vancouver");
+
+    const embed = new EmbedBuilder()
+        .setTitle(`📅 ${event.title} 📅`)
+        .setColor(0x4285F4)
+        .addFields(
+            {
+                name: '🕒 Date & Time',
+                value: `${startTime.format("MMMM D, YYYY")}\n${startTime.format("h:mm A")} - ${endTime.format("h:mm A")}`,
+                inline: true
+            },
+            {
+                name: '📍 Location',
+                value: event.location || 'No location specified',
+                inline: true
+            },
+            {
+                name: '📝 Description',
+                value: event.description || 'No description provided',
+                inline: false
+            }
+        )
+        .setTimestamp(startTime.toDate())
+        .setFooter({ text: 'Event Details' });
+
+    // Add link as a button-style field if available
+    if (event.htmlLink) {
+        embed.addFields({
+            name: '🔗 Event Link',
+            value: `[View in Google Calendar](${event.htmlLink})`,
+            inline: false
+        });
+    }
+
+    return embed;
 }
 
 async function handleSlashCommand(interaction) {
-    try{
+    try {
         const { commandName, options } = interaction;
         if (commandName === "event") {
             const subcommand = interaction.options.getSubcommand();
@@ -195,7 +228,11 @@ async function handleSlashCommand(interaction) {
         } else if (commandName === "hello") {
             await handleHelloCommand(interaction);
         } else {
-            await interaction.reply({ content: "Unknown command", ephemeral: true });
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: "Unknown command" });
+            } else {
+                await interaction.reply({ content: "Unknown command", ephemeral: true });
+            }
         }
     } catch (error) {
         console.error("Error handling slash command:", error);
@@ -205,7 +242,7 @@ async function handleSlashCommand(interaction) {
 // --- handler for button interaction ---
 async function handleButton(interaction) {
     if (interaction.customId === 'send_to_channel') {
-        await interaction.channel.send(interaction.message.content);
+        await interaction.channel.send({ embeds: interaction.message.embeds });
 
         await interaction.deferUpdate();
         await interaction.deleteReply();
