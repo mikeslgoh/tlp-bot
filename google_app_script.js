@@ -22,6 +22,13 @@ class GoogleAppScriptManager {
 			throw error;
 		}
 	}
+
+	async getWeeklyReminders() {
+
+	}
+
+	async getMonthlyReminders() {
+	}
 }
 
 module.exports = GoogleAppScriptManager

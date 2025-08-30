@@ -9,6 +9,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN)
 const GoogleAppScriptManager = require("./google_app_script");
 const NotionManager = require("./notion_script")
 const Utils = require("./utils");
+const { setupCronJobs } = require("./discord_reminders");
 
 // Initialize the bot client
 function initializeClient() {
@@ -195,22 +196,27 @@ function formatEventDetails(resp) {
                 inline: true
             },
             {
-                name: '📝 Description',
-                value: event.description || 'No description provided',
-                inline: false
-            }
-        )
-        .setTimestamp(startTime.toDate())
-        .setFooter({ text: 'Event Details' });
+                name: '\u200B', // Invisible character
+                value: '\u200B',
+                inline: true
+            }).addFields(
+                {
+                    name: '📝 Description',
+                    value: event.description || 'No description provided',
+                    inline: true
+                },
+                {
+                    name: '🔗 Event Link',
+                    value: `[View in Google Calendar](${event.htmlLink})`,
+                    inline: true
+                },
 
-    // Add link as a button-style field if available
-    if (event.htmlLink) {
-        embed.addFields({
-            name: '🔗 Event Link',
-            value: `[View in Google Calendar](${event.htmlLink})`,
-            inline: false
-        });
-    }
+                {
+                    name: '\u200B', // Invisible character
+                    value: '\u200B',
+                    inline: true
+                }
+            );
 
     return embed;
 }
@@ -268,6 +274,8 @@ async function startBot() {
     client.once("ready", () => {
         console.log(`✅ Logged in as ${client.user.tag}`);
     });
+
+    setupCronJobs(client);
 
     const PING_INTERVAL = 14 * 60 * 1000; // Every 14 minutes
 
