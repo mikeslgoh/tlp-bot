@@ -16,6 +16,7 @@ function scheduleWeeklyReminders(client) {
     console.log("DISCORD_REMINDERS: SCHEDULING WEEKLY REMINDERS")
     // Weekly message every Monday at 5:00 PM
     cron.schedule('0 17 * * 1', async () => {
+        console.log("DISCORD_REMINDERS: RUNNING WEEKLY REMINDERS")
         const channel = client.channels.cache.get(DISCORD_ANNOUNCEMENTS_CHANNEL_ID);
         if (channel) {
             await createWeeklyReminders(channel);
@@ -27,6 +28,7 @@ function scheduleMonthlyReminders(client) {
     console.log("DISCORD_REMINDERS: SCHEDULING MONTHLY REMINDERS")
     // Monthly reminders every 1st day of the month at 5:00pm
     cron.schedule('0 17 1 * *', async () => {
+        console.log("DISCORD_REMINDERS: RUNNING MONTHLY REMINDERS")
         const channel = client.channels.cache.get(DISCORD_ANNOUNCEMENTS_CHANNEL_ID);
         if (channel) {
             await createMonthlyReminders(channel);
