@@ -9,6 +9,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN)
 const GoogleAppScriptManager = require("./google_app_script");
 const NotionManager = require("./notion_script")
 const Utils = require("./utils");
+const { setupCronJobs, createWeeklyReminders, createMonthlyReminders } = require("./discord_reminders");
 
 // Initialize the bot client
 function initializeClient() {
@@ -46,7 +47,21 @@ function getCommands() {
                     .addStringOption(option =>
                         option.setName('event-name')
                             .setDescription('Name of the event to retrieve')
-                            .setRequired(true)))
+                            .setRequired(true))),
+        // new SlashCommandBuilder()
+        //     .setName('preview')
+        //     .setDescription('Preview commands')
+        //     .addSubcommand(subcommand =>
+        //         subcommand
+        //             .setName("reminders")
+        //             .setDescription("Preview reminder commands")
+        //             .addStringOption(option =>
+        //                 option.setName("type")
+        //                     .setDescription("Type of reminder")
+        //                     .setRequired(true)
+        //             )
+        //     )
+            
     ];
 }
 
@@ -195,22 +210,27 @@ function formatEventDetails(resp) {
                 inline: true
             },
             {
-                name: '📝 Description',
-                value: event.description || 'No description provided',
-                inline: false
-            }
-        )
-        .setTimestamp(startTime.toDate())
-        .setFooter({ text: 'Event Details' });
+                name: '\u200B', // Invisible character
+                value: '\u200B',
+                inline: true
+            }).addFields(
+                {
+                    name: '📝 Description',
+                    value: event.description || 'No description provided',
+                    inline: true
+                },
+                {
+                    name: '🔗 Event Link',
+                    value: `[View in Google Calendar](${event.htmlLink})`,
+                    inline: true
+                },
 
-    // Add link as a button-style field if available
-    if (event.htmlLink) {
-        embed.addFields({
-            name: '🔗 Event Link',
-            value: `[View in Google Calendar](${event.htmlLink})`,
-            inline: false
-        });
-    }
+                {
+                    name: '\u200B', // Invisible character
+                    value: '\u200B',
+                    inline: true
+                }
+            );
 
     return embed;
 }
@@ -227,6 +247,17 @@ async function handleSlashCommand(interaction) {
             }
         } else if (commandName === "hello") {
             await handleHelloCommand(interaction);
+        } else if (commandName === "preview") {
+            const subcommand = interaction.options.getSubcommand();
+            if (subcommand === "reminders") {
+                if (interaction.options.getString("type") === "monthly") {
+                    await createMonthlyReminders(interaction.channel);
+                    await interaction.editReply({ content: "Monthly reminders previewed!" });
+                } else if (interaction.options.getString("type") === "weekly") {
+                    await createWeeklyReminders(interaction.channel);
+                    await interaction.editReply({ content: "Weekly reminders previewed!" });
+                }
+            }
         } else {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: "Unknown command" });
@@ -268,6 +299,8 @@ async function startBot() {
     client.once("ready", () => {
         console.log(`✅ Logged in as ${client.user.tag}`);
     });
+
+    setupCronJobs(client);
 
     const PING_INTERVAL = 14 * 60 * 1000; // Every 14 minutes
 
