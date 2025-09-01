@@ -9,7 +9,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN)
 const GoogleAppScriptManager = require("./google_app_script");
 const NotionManager = require("./notion_script")
 const Utils = require("./utils");
-const { setupCronJobs } = require("./discord_reminders");
+const { setupCronJobs, createWeeklyReminders, createMonthlyReminders } = require("./discord_reminders");
 
 // Initialize the bot client
 function initializeClient() {
@@ -47,7 +47,21 @@ function getCommands() {
                     .addStringOption(option =>
                         option.setName('event-name')
                             .setDescription('Name of the event to retrieve')
-                            .setRequired(true)))
+                            .setRequired(true))),
+        // new SlashCommandBuilder()
+        //     .setName('preview')
+        //     .setDescription('Preview commands')
+        //     .addSubcommand(subcommand =>
+        //         subcommand
+        //             .setName("reminders")
+        //             .setDescription("Preview reminder commands")
+        //             .addStringOption(option =>
+        //                 option.setName("type")
+        //                     .setDescription("Type of reminder")
+        //                     .setRequired(true)
+        //             )
+        //     )
+            
     ];
 }
 
@@ -233,6 +247,17 @@ async function handleSlashCommand(interaction) {
             }
         } else if (commandName === "hello") {
             await handleHelloCommand(interaction);
+        } else if (commandName === "preview") {
+            const subcommand = interaction.options.getSubcommand();
+            if (subcommand === "reminders") {
+                if (interaction.options.getString("type") === "monthly") {
+                    await createMonthlyReminders(interaction.channel);
+                    await interaction.editReply({ content: "Monthly reminders previewed!" });
+                } else if (interaction.options.getString("type") === "weekly") {
+                    await createWeeklyReminders(interaction.channel);
+                    await interaction.editReply({ content: "Weekly reminders previewed!" });
+                }
+            }
         } else {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: "Unknown command" });
