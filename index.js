@@ -275,6 +275,8 @@ async function handleDocSelection(interaction) {
     const userId = interaction.user.id;
 
     try {
+        await interaction.deferReply({ ephemeral: true });
+
         const docNames = userDocNames.get(userId);
 
         if (!docNames) {
@@ -351,13 +353,27 @@ async function executeSelectDoc(interaction) {
 
         if (response.error) {
             console.log("HANDLE_EVENT_APPROVAL: Error fetching documents -", response.error);
-            return await interaction.editReply(`❌ Error fetching document names`);
+            if (interaction.deferred || interaction.replied) {
+                return await interaction.editReply(`❌ Error fetching document names`);
+            } else {
+                await interaction.reply({
+                    content: `❌ Error fetching document names`,
+                    ephemeral: true
+                });
+            }
         }
 
         const { docNames } = response;
 
         if (docNames.length === 0) {
-            return await interaction.editReply('❌ No documents found in the folder.');
+            if (interaction.deferred || interaction.replied) {
+                return await interaction.editReply('❌ No documents found in the folder.');
+            } else {
+                await interaction.reply({
+                    content: '❌ No documents found in the folder.',
+                    ephemeral: true
+                });
+            }
         }
 
         // Store doc names for this user
@@ -373,7 +389,15 @@ async function executeSelectDoc(interaction) {
 
     } catch (error) {
         console.error('HANDLE_EVENT_APPROVAL: Error fetching documents -', error);
-        await interaction.editReply('❌ Error fetching event requests from Google Drive.');
+        
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply('❌ Error fetching event requests from Google Drive.');
+        } else {
+            await interaction.reply({
+                content: '❌ Error fetching event requests from Google Drive.',
+                ephemeral: true
+            });
+        }
     }
 }
 
