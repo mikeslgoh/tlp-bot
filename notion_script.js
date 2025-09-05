@@ -1,13 +1,14 @@
 import { Client as NotionClient } from '@notionhq/client';
-const notion = new NotionClient({ auth: process.env.NOTION_INTEGRATION_TOKEN });
-
-const NOTION_EVENT_PROJECT_ID = process.env.NOTION_EVENT_PROJECT_ID;
-const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 class NotionManager {
-	constructor() { }
+	constructor() {}
 
 	async syncCalendarEvent(event, calendarLink) {
+		const notion = new NotionClient({ auth: process.env.NOTION_INTEGRATION_TOKEN });
+
+		const NOTION_EVENT_PROJECT_ID = process.env.NOTION_EVENT_PROJECT_ID;
+		const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
+
 		try {
 			const response = await notion.pages.create({
 				parent: { database_id: NOTION_DATABASE_ID },
@@ -16,7 +17,7 @@ class NotionManager {
 					"Dates": {
 						date: {
 							start: event.startDateTime, // ISO string
-							end: event.endDateTime      // ISO string
+							end: event.endDateTime || null    // ISO string
 						}
 					},
 					"TLP Projects": {
@@ -38,7 +39,7 @@ class NotionManager {
 								},
 								{
 									type: "text", text: {
-										content: `Location: ${event.location}\n` +
+										content: `\nLocation: ${event.location}\n` +
 											`Description: ${event.description}\n`
 									}
 								}

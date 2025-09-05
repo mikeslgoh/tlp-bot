@@ -125,10 +125,7 @@ async function handleNewEventCommand(interaction) {
 
         console.log("CREATE_CALENDAR_EVENT: Event created on Google Calendar!")
 
-        // const notionManager = new NotionManager();
-        // await notionManager.syncCalendarEvent(formattedEvent, resp);
-
-        // console.log("CREATE_CALENDAR_EVENT: Event synced to Notion!")
+        await syncToNotion(formattedEvent, resp);
 
         const button = new ButtonBuilder()
             .setCustomId('send_to_channel')
@@ -206,52 +203,6 @@ async function handleGetEventDetailsCommand(interaction) {
     }
 }
 
-function formatEventDetails(resp) {
-    let event = resp.events[0];
-
-    const startTime = moment(event.start).tz("America/Vancouver");
-    const endTime = moment(event.end).tz("America/Vancouver");
-
-    const embed = new EmbedBuilder()
-        .setTitle(`📅 ${event.title} 📅`)
-        .setColor(0x4285F4)
-        .addFields(
-            {
-                name: '🕒 Date & Time',
-                value: `${startTime.format("MMMM D, YYYY")}\n${startTime.format("h:mm A")} - ${endTime.format("h:mm A")}`,
-                inline: true
-            },
-            {
-                name: '📍 Location',
-                value: event.location || 'No location specified',
-                inline: true
-            },
-            {
-                name: '\u200B', // Invisible character
-                value: '\u200B',
-                inline: true
-            }).addFields(
-                {
-                    name: '📝 Description',
-                    value: event.description || 'No description provided',
-                    inline: true
-                },
-                {
-                    name: '🔗 Event Link',
-                    value: `[View in Google Calendar](${event.htmlLink})`,
-                    inline: true
-                },
-
-                {
-                    name: '\u200B', // Invisible character
-                    value: '\u200B',
-                    inline: true
-                }
-            );
-
-    return embed;
-}
-
 
 async function createDocDropdown(docNames) {
     const limitedDocs = docNames.slice(0, 25);
@@ -275,8 +226,6 @@ async function handleDocSelection(interaction) {
     const userId = interaction.user.id;
 
     try {
-        await interaction.deferReply({ ephemeral: true });
-
         const docNames = userDocNames.get(userId);
 
         if (!docNames) {
@@ -321,8 +270,10 @@ async function handleDocSelection(interaction) {
         const approvedEvent = await utils.parseEventFormText(result.eventDetails);
 
         const eventLink = await googleAppScriptManager.createEvent(approvedEvent);
-
+        
         await sendApprovedEventMessage(result.eventDetails, eventLink);
+
+        await syncToNotion(approvedEvent, eventLink)
 
         await interaction.deleteReply();
     } catch (error) {
@@ -346,7 +297,9 @@ async function handleDocSelection(interaction) {
 
 async function executeSelectDoc(interaction) {
     try {
-        await interaction.deferReply({ ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+        }
 
         const googleAppScriptManager = new GoogleAppScriptManager();
         const response = await googleAppScriptManager.getPendingRequestDocNames();
@@ -463,29 +416,57 @@ function setupInteractionHandler() {
     });
 }
 
-// Start the bot
-async function startBot() {
-    await registerCommands();
-    setupInteractionHandler();
+function formatEventDetails(resp) {
+    let event = resp.events[0];
 
-    client.once("ready", () => {
-        console.log(`✅ Logged in as ${client.user.tag}`);
-    });
+    const startTime = moment(event.start).tz("America/Vancouver");
+    const endTime = moment(event.end).tz("America/Vancouver");
 
-    setupCronJobs(client);
+    const embed = new EmbedBuilder()
+        .setTitle(`📅 ${event.title} 📅`)
+        .setColor(0x4285F4)
+        .addFields(
+            {
+                name: '🕒 Date & Time',
+                value: `${startTime.format("MMMM D, YYYY")}\n${startTime.format("h:mm A")} - ${endTime.format("h:mm A")}`,
+                inline: true
+            },
+            {
+                name: '📍 Location',
+                value: event.location || 'No location specified',
+                inline: true
+            },
+            {
+                name: '\u200B', // Invisible character
+                value: '\u200B',
+                inline: true
+            }).addFields(
+                {
+                    name: '📝 Description',
+                    value: event.description || 'No description provided',
+                    inline: true
+                },
+                {
+                    name: '🔗 Event Link',
+                    value: `[View in Google Calendar](${event.htmlLink})`,
+                    inline: true
+                },
 
-    const PING_INTERVAL = 14 * 60 * 1000; // Every 14 minutes
+                {
+                    name: '\u200B', // Invisible character
+                    value: '\u200B',
+                    inline: true
+                }
+            );
 
-    setInterval(async () => {
-        try {
-            const response = await fetch(`${process.env.RENDER_URL}/api/health`);
-            console.log(`Health check successful: ${response.status}`);
-        } catch (error) {
-            console.error('Health check failed:', error.message);
-        }
-    }, PING_INTERVAL);
+    return embed;
+}
 
-    client.login(process.env.DISCORD_BOT_TOKEN);
+async function syncToNotion(formattedEvent, resp) {
+    const notionManager = new NotionManager();
+    await notionManager.syncCalendarEvent(formattedEvent, resp);
+
+    console.log("CREATE_CALENDAR_EVENT: Event synced to Notion!")
 }
 
 async function sendApprovedEventMessage(eventDetails, link) {
@@ -530,6 +511,31 @@ async function sendApprovedEventMessage(eventDetails, link) {
 
     const message = await channel.send({ message: "Please react if you are available and want to sing",embeds: [embed] });
     message.react("✅");
+}
+
+// Start the bot
+async function startBot() {
+    await registerCommands();
+    setupInteractionHandler();
+
+    client.once("ready", () => {
+        console.log(`✅ Logged in as ${client.user.tag}`);
+    });
+
+    setupCronJobs(client);
+
+    const PING_INTERVAL = 14 * 60 * 1000; // Every 14 minutes
+
+    setInterval(async () => {
+        try {
+            const response = await fetch(`${process.env.RENDER_URL}/api/health`);
+            console.log(`Health check successful: ${response.status}`);
+        } catch (error) {
+            console.error('Health check failed:', error.message);
+        }
+    }, PING_INTERVAL);
+
+    client.login(process.env.DISCORD_BOT_TOKEN);
 }
 
 startBot();
