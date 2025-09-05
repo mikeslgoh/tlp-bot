@@ -345,60 +345,65 @@ async function handleDocSelection(interaction) {
 }
 
 async function executeSelectDoc(interaction) {
-    try {
-        await interaction.deferReply({ ephemeral: true });
+  let hasDeferred = false;
 
-        const googleAppScriptManager = new GoogleAppScriptManager();
-        const response = await googleAppScriptManager.getPendingRequestDocNames();
-
-        if (response.error) {
-            console.log("HANDLE_EVENT_APPROVAL: Error fetching documents -", response.error);
-            if (interaction.deferred || interaction.replied) {
-                return await interaction.editReply(`❌ Error fetching document names`);
-            } else {
-                await interaction.reply({
-                    content: `❌ Error fetching document names`,
-                    ephemeral: true
-                });
-            }
-        }
-
-        const { docNames } = response;
-
-        if (docNames.length === 0) {
-            if (interaction.deferred || interaction.replied) {
-                return await interaction.editReply('❌ No documents found in the folder.');
-            } else {
-                await interaction.reply({
-                    content: '❌ No documents found in the folder.',
-                    ephemeral: true
-                });
-            }
-        }
-
-        // Store doc names for this user
-        userDocNames.set(interaction.user.id, docNames);
-
-        const dropdown = await createDocDropdown(docNames);
-
-        await interaction.editReply({
-            content: 'Select an event to approve:',
-            components: [dropdown],
-            ephemeral: true
-        });
-
-    } catch (error) {
-        console.error('HANDLE_EVENT_APPROVAL: Error fetching documents -', error);
-        
-        if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('❌ Error fetching event requests from Google Drive.');
-        } else {
-            await interaction.reply({
-                content: '❌ Error fetching event requests from Google Drive.',
-                ephemeral: true
-            });
-        }
+  try {
+    // Defer early if not already replied
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+      hasDeferred = true;
     }
+
+    const googleAppScriptManager = new GoogleAppScriptManager();
+    const response = await googleAppScriptManager.getPendingRequestDocNames();
+
+    if (response.error) {
+      console.error("HANDLE_EVENT_APPROVAL: Error fetching documents -", response.error);
+      const message = "❌ Error fetching document names";
+
+      if (hasDeferred || interaction.deferred) {
+        return await interaction.editReply(message);
+      } else {
+        return await interaction.reply({ content: message, ephemeral: true });
+      }
+    }
+
+    const { docNames } = response;
+
+    if (!docNames || docNames.length === 0) {
+      const message = "❌ No documents found in the folder.";
+      if (hasDeferred || interaction.deferred) {
+        return await interaction.editReply(message);
+      } else {
+        return await interaction.reply({ content: message, ephemeral: true });
+      }
+    }
+
+    // Store doc names for this user
+    userDocNames.set(interaction.user.id, docNames);
+
+    const dropdown = await createDocDropdown(docNames);
+
+    // Safe because we deferred above
+    await interaction.editReply({
+      content: "Select an event to approve:",
+      components: [dropdown]
+    });
+
+  } catch (error) {
+    console.error("HANDLE_EVENT_APPROVAL: Error fetching documents -", error);
+    const message = "❌ Error fetching event requests from Google Drive.";
+
+    try {
+      if (hasDeferred || interaction.deferred) {
+        await interaction.editReply(message);
+      } else {
+        await interaction.reply({ content: message, ephemeral: true });
+      }
+    } catch (replyError) {
+      console.error("Failed to send interaction error message:", replyError);
+    }
+  }
 }
 
 async function handleSlashCommand(interaction) {
