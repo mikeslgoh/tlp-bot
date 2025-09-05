@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 let clientReady = false;
-const loginPromise = client.login(process.env.DISCORD_TOKEN)
+const loginPromise = client.login(process.env.DISCORD_BOT_TOKEN)
   .then(() => {
     console.log(`Logged in as ${client.user.tag}`);
     clientReady = true;
