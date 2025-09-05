@@ -6,12 +6,14 @@ The bot uses [Google App Script](https://developers.google.com/apps-script) as i
 
 ## Features
 * Weekly and monthly reminders from Google Calendar
+* Create calendar events from Discord and sync with Google Calendar and Notion
 * Get details about a specific calendar event sent to Discord
 * Send notifications when a new Google request form has been submitted
 * Approve a pending event which will:
   * Move the pending event doc into the approved folder
   * Create a calendar event for the respective event
   * Notify on Discord about the approved event
+  * Add approved events to Notion
 
 ##  Prerequisites
 
