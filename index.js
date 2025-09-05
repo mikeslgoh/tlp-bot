@@ -452,7 +452,7 @@ async function startBot() {
 }
 
 async function sendApprovedEventMessage(eventDetails, link) {
-    const channel = await client.channels.fetch(process.env.DISCORD_EVENT_REQUEST_CHANNEL_ID);
+    const channel = await client.channels.fetch(process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID);
     if (!channel) throw new Error('Channel not found');
 
     const embed = new EmbedBuilder()
