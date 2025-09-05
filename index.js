@@ -495,22 +495,4 @@ async function sendApprovedEventMessage(eventDetails, link) {
     message.react("✅");
 }
 
-export async function sendEventRequestMessage(link) {
-    const channel = await client.channels.fetch(process.env.DISCORD_EVENT_REQUEST_CHANNEL_ID);
-    if (!channel) throw new Error('Channel not found');
-
-    const embed = new EmbedBuilder()
-        .setTitle(`New Event Request Pending Review`)
-        .setColor(0x4285F4)
-        .addFields(
-            {
-                name: '🔗 Details',
-                value: `[View in Google Docs](${link})`,
-                inline: true
-            }
-        );
-
-    await channel.send({ embeds: [embed] });
-}
-
 startBot();
