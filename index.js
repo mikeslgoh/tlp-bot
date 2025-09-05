@@ -1,15 +1,28 @@
-const { Client, GatewayIntentBits, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder } = require("discord.js");
-require("dotenv").config();
-const { REST } = require("@discordjs/rest");
-const { Routes } = require("discord-api-types/v10");
-const moment = require('moment-timezone');
+import {
+    Client,
+    GatewayIntentBits,
+    SlashCommandBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ActionRowBuilder,
+    EmbedBuilder,
+    StringSelectMenuBuilder
+} from "discord.js";
+
+import dotenv from "dotenv";
+dotenv.config();
+
+import { REST } from "@discordjs/rest";
+import { Routes } from "discord-api-types/v10";
+import moment from "moment-timezone";
+
+import GoogleAppScriptManager from "./google_app_script.js";
+import NotionManager from "./notion_script.js";
+import Utils from "./utils.js";
+import { setupCronJobs, createWeeklyReminders, createMonthlyReminders } from "./discord_reminders.js";
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
-
-const GoogleAppScriptManager = require("./google_app_script");
-const NotionManager = require("./notion_script")
-const Utils = require("./utils");
-const { setupCronJobs, createWeeklyReminders, createMonthlyReminders } = require("./discord_reminders");
+const userDocNames = new Map();
 
 // Initialize the bot client
 function initializeClient() {
@@ -47,7 +60,11 @@ function getCommands() {
                     .addStringOption(option =>
                         option.setName('event-name')
                             .setDescription('Name of the event to retrieve')
-                            .setRequired(true))),
+                            .setRequired(true)))
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('approve')
+                    .setDescription('Approve a pending event request'))
         // new SlashCommandBuilder()
         //     .setName('preview')
         //     .setDescription('Preview commands')
@@ -61,7 +78,7 @@ function getCommands() {
         //                     .setRequired(true)
         //             )
         //     )
-            
+
     ];
 }
 
@@ -108,10 +125,10 @@ async function handleNewEventCommand(interaction) {
 
         console.log("CREATE_CALENDAR_EVENT: Event created on Google Calendar!")
 
-        const notionManager = new NotionManager();
-        await notionManager.syncCalendarEvent(formattedEvent, resp);
+        // const notionManager = new NotionManager();
+        // await notionManager.syncCalendarEvent(formattedEvent, resp);
 
-        console.log("CREATE_CALENDAR_EVENT: Event synced to Notion!")
+        // console.log("CREATE_CALENDAR_EVENT: Event synced to Notion!")
 
         const button = new ButtonBuilder()
             .setCustomId('send_to_channel')
@@ -235,6 +252,118 @@ function formatEventDetails(resp) {
     return embed;
 }
 
+
+async function createDocDropdown(docNames) {
+    const limitedDocs = docNames.slice(0, 25);
+
+    const options = limitedDocs.map((docName, index) => ({
+        label: docName.length > 100 ? docName.substring(0, 97) + '...' : docName,
+        description: `Select ${docName}`,
+        value: `doc_${index}`,
+    }));
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('doc_select')
+        .setPlaceholder('Choose an event...')
+        .addOptions(options);
+
+    return new ActionRowBuilder().addComponents(selectMenu);
+}
+
+
+async function handleDocSelection(interaction) {
+    const userId = interaction.user.id;
+
+    try {
+        const docNames = userDocNames.get(userId);
+
+        if (!docNames) {
+            return await interaction.reply({
+                content: 'Session expired. Please run the command again.',
+                ephemeral: true
+            });
+        }
+
+        const selectedIndex = parseInt(interaction.values[0].replace('doc_', ''));
+        const selectedDocName = docNames[selectedIndex];
+
+        // Update the message to show loading
+        await interaction.update({
+            content: `Processing document: **${selectedDocName}**... ⏳`,
+            components: [] // Remove dropdown
+        });
+
+        const googleAppScriptManager = new GoogleAppScriptManager();
+        const result = await googleAppScriptManager.approveEventRequest(selectedDocName);
+
+        if (result.error) {
+            console.log("HANDLE_EVENT_APPROVAL: Error approving event -", result.error);
+            return await interaction.editReply({
+                content: `❌ Failed to approve event request`
+            });
+        }
+
+        // Update with success message
+        await interaction.editReply({
+            content: `✅ Event request approved. Posting event to announcements ...`
+        });
+
+        const utils = new Utils();
+        const approvedEvent = await utils.parseEventFormText(result.eventDetails);
+
+        const eventLink = await googleAppScriptManager.createEvent(approvedEvent);
+
+        await sendApprovedEventMessage(result.eventDetails, eventLink);
+
+        await interaction.deleteReply();
+    } catch (error) {
+        console.error('HANDLE_EVENT_APPROVAL: Error occurred -', error);
+
+        // Update with error message
+        await interaction.editReply({
+            content: `❌ Failed to process event approval`
+        });
+    } finally {
+        // Clean up stored data
+        userDocNames.delete(userId);
+    }
+}
+
+async function executeSelectDoc(interaction) {
+    try {
+        await interaction.deferReply({ ephemeral: true });
+
+        const googleAppScriptManager = new GoogleAppScriptManager();
+        const response = await googleAppScriptManager.getPendingRequestDocNames();
+
+        if (response.error) {
+            console.log("HANDLE_EVENT_APPROVAL: Error fetching documents -", response.error);
+            return await interaction.editReply(`❌ Error fetching document names`);
+        }
+
+        const { docNames } = response;
+
+        if (docNames.length === 0) {
+            return await interaction.editReply('❌ No documents found in the folder.');
+        }
+
+        // Store doc names for this user
+        userDocNames.set(interaction.user.id, docNames);
+
+        const dropdown = await createDocDropdown(docNames);
+
+        await interaction.editReply({
+            content: 'Select an event to approve:',
+            components: [dropdown],
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('HANDLE_EVENT_APPROVAL: Error fetching documents -', error);
+        await interaction.editReply('❌ Error fetching event requests from Google Drive.');
+    }
+}
+
 async function handleSlashCommand(interaction) {
     try {
         const { commandName, options } = interaction;
@@ -244,21 +373,25 @@ async function handleSlashCommand(interaction) {
                 await handleNewEventCommand(interaction);
             } else if (subcommand === "get-details") {
                 await handleGetEventDetailsCommand(interaction);
+            } else if (subcommand === "approve") {
+                await executeSelectDoc(interaction);
             }
         } else if (commandName === "hello") {
             await handleHelloCommand(interaction);
-        } else if (commandName === "preview") {
-            const subcommand = interaction.options.getSubcommand();
-            if (subcommand === "reminders") {
-                if (interaction.options.getString("type") === "monthly") {
-                    await createMonthlyReminders(interaction.channel);
-                    await interaction.editReply({ content: "Monthly reminders previewed!" });
-                } else if (interaction.options.getString("type") === "weekly") {
-                    await createWeeklyReminders(interaction.channel);
-                    await interaction.editReply({ content: "Weekly reminders previewed!" });
-                }
-            }
-        } else {
+        }
+        // else if (commandName === "preview") {
+        //     const subcommand = interaction.options.getSubcommand();
+        //     if (subcommand === "reminders") {
+        //         if (interaction.options.getString("type") === "monthly") {
+        //             await createMonthlyReminders(interaction.channel);
+        //             await interaction.editReply({ content: "Monthly reminders previewed!" });
+        //         } else if (interaction.options.getString("type") === "weekly") {
+        //             await createWeeklyReminders(interaction.channel);
+        //             await interaction.editReply({ content: "Weekly reminders previewed!" });
+        //         }
+        //     }
+        // } 
+        else {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: "Unknown command" });
             } else {
@@ -287,6 +420,8 @@ function setupInteractionHandler() {
             await handleSlashCommand(interaction);
         } else if (interaction.isButton()) {
             await handleButton(interaction);
+        } else if (interaction.isStringSelectMenu() && interaction.customId === 'doc_select') {
+            await handleDocSelection(interaction);
         }
     });
 }
@@ -314,6 +449,68 @@ async function startBot() {
     }, PING_INTERVAL);
 
     client.login(process.env.DISCORD_BOT_TOKEN);
+}
+
+async function sendApprovedEventMessage(eventDetails, link) {
+    const channel = await client.channels.fetch(process.env.DISCORD_EVENT_REQUEST_CHANNEL_ID);
+    if (!channel) throw new Error('Channel not found');
+
+    const embed = new EmbedBuilder()
+        .setTitle(`Upcoming Event`)
+        .setColor(0x4285F4)
+        .addFields(
+            {
+                name: '🕒 Date & Time',
+                value: eventDetails.date,
+                inline: true
+            },
+            {
+                name: '📍 Location',
+                value: eventDetails.location || 'No location specified',
+                inline: true
+            },
+            {
+                name: '📅 Event Type',
+                value: eventDetails.event_type,
+                inline: true
+            },
+            // {
+            //     name: '🎤 Number of Singers',
+            //     value: eventDetails.number_of_singers,
+            //     inline: true
+            // },
+            // {
+            //     name: '💵 Pay Rate',
+            //     value: eventDetails.pay_rate,
+            //     inline: true
+            // },
+            {
+                name: '🔗 Event Link',
+                value: `[View in Google Calendar](${link})`,
+                inline: true
+            },
+        );
+
+    const message = await channel.send({ message: "Please react if you are available and want to sing",embeds: [embed] });
+    message.react("✅");
+}
+
+export async function sendEventRequestMessage(link) {
+    const channel = await client.channels.fetch(process.env.DISCORD_EVENT_REQUEST_CHANNEL_ID);
+    if (!channel) throw new Error('Channel not found');
+
+    const embed = new EmbedBuilder()
+        .setTitle(`New Event Request Pending Review`)
+        .setColor(0x4285F4)
+        .addFields(
+            {
+                name: '🔗 Details',
+                value: `[View in Google Docs](${link})`,
+                inline: true
+            }
+        );
+
+    await channel.send({ embeds: [embed] });
 }
 
 startBot();

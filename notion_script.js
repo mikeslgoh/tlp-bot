@@ -1,4 +1,4 @@
-const { Client: NotionClient } = require('@notionhq/client');
+import { Client as NotionClient } from '@notionhq/client';
 const notion = new NotionClient({ auth: process.env.NOTION_INTEGRATION_TOKEN });
 
 const NOTION_EVENT_PROJECT_ID = process.env.NOTION_EVENT_PROJECT_ID;
@@ -57,4 +57,4 @@ class NotionManager {
 	}
 }
 
-module.exports = NotionManager;
+export default NotionManager;

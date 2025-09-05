@@ -2,6 +2,7 @@
   "name": "discord",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -1,4 +1,4 @@
-const moment = require('moment');
+import moment from 'moment';
 
 class Utils {
 	constructor() { }
@@ -38,6 +38,27 @@ class Utils {
 		};
 	}
 
+	parseEventFormText(details) {
+		const eventName = `${details.name} ${details.event_type}`;
+		const location = details.location;
+
+		const dateSplit = details.date.split(" ");
+		const date = dateSplit[0];
+		const startTime = dateSplit[1];
+
+		const startDateTime = this.formatToISODateTime(date, startTime);
+		const description = `Set List\n${details.set_list || ''}\n`+
+							`Dress Code\n${details.dress_code || ''}\n`+
+							`Number of Singers\n${details.number_of_singers || ''}\n`
+
+		return {
+			title: eventName,
+			startDateTime: startDateTime,
+			description: description,
+			location: location
+		};
+	}
+
 	formatToISODateTime(dateStr, timeStr, timezone = 'America/Vancouver') {
 		try {
 			const dateTimeStr = `${dateStr} ${timeStr}`;
@@ -59,4 +80,4 @@ class Utils {
 	}
 }
 
-module.exports = Utils
+export default Utils;

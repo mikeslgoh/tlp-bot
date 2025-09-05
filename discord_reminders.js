@@ -1,10 +1,10 @@
-const { EmbedBuilder } = require("discord.js");
+import { EmbedBuilder } from "discord.js";
 
-const cron = require('node-cron');
-const moment = require('moment');
+import cron from 'node-cron';
+import moment from 'moment';
 
 const DISCORD_ANNOUNCEMENTS_CHANNEL_ID = process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID;
-const GoogleAppScriptManager = require('./google_app_script');
+import GoogleAppScriptManager from './google_app_script.js';
 const googleAppScriptManager = new GoogleAppScriptManager();
 
 function setupCronJobs(client) {
@@ -82,4 +82,4 @@ async function formatEventReminders(events, type) {
     return embed;
 }
 
-module.exports = { setupCronJobs, createWeeklyReminders, createMonthlyReminders };
+export { setupCronJobs, createWeeklyReminders, createMonthlyReminders };
