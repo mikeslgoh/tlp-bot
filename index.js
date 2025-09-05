@@ -492,16 +492,16 @@ async function sendApprovedEventMessage(eventDetails, link) {
                 value: eventDetails.event_type,
                 inline: true
             },
-            // {
-            //     name: '🎤 Number of Singers',
-            //     value: eventDetails.number_of_singers,
-            //     inline: true
-            // },
-            // {
-            //     name: '💵 Pay Rate',
-            //     value: eventDetails.pay_rate,
-            //     inline: true
-            // },
+            {
+                name: '🎤 Number of Singers',
+                value: eventDetails.number_of_singers || 'N/A',
+                inline: true
+            },
+            {
+                name: '💵 Pay Rate',
+                value: eventDetails.pay_rate || 'N/A',
+                inline: true
+            },
             {
                 name: '🔗 Event Link',
                 value: `[View in Google Calendar](${link})`,
