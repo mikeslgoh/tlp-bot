@@ -298,9 +298,16 @@ async function handleDocSelection(interaction) {
 
         if (result.error) {
             console.log("HANDLE_EVENT_APPROVAL: Error approving event -", result.error);
-            return await interaction.editReply({
-                content: `❌ Failed to approve event request`
-            });
+            if (interaction.deferred || interaction.replied) {
+                return await interaction.editReply({
+                    content: `❌ Failed to approve event request`
+                });
+            } else {
+                await interaction.reply({
+                    content: `❌ Failed to approve event request`,
+                    ephemeral: true
+                });
+            }
         }
 
         // Update with success message
@@ -319,10 +326,16 @@ async function handleDocSelection(interaction) {
     } catch (error) {
         console.error('HANDLE_EVENT_APPROVAL: Error occurred -', error);
 
-        // Update with error message
-        await interaction.editReply({
+    if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
             content: `❌ Failed to process event approval`
         });
+    } else {
+        await interaction.reply({
+            content: `❌ Failed to process event approval`,
+            ephemeral: true
+        });
+    }
     } finally {
         // Clean up stored data
         userDocNames.delete(userId);
