@@ -4,6 +4,15 @@ This is a README for a discord bot created for [The Lyre Project](https://thelyr
 
 The bot uses [Google App Script](https://developers.google.com/apps-script) as its backend to retrieve data such as Calendar events, filled in Google Forms, etc.
 
+## Features
+* Weekly and monthly reminders from Google Calendar
+* Get details about a specific calendar event sent to Discord
+* Send notifications when a new Google request form has been submitted
+* Approve a pending event which will:
+  * Move the pending event doc into the approved folder
+  * Create a calendar event for the respective event
+  * Notify on Discord about the approved event
+
 ##  Prerequisites
 
 - **Node.js** v18 or higher (Discord.js v14+ requires this)
