@@ -509,7 +509,7 @@ async function sendApprovedEventMessage(eventDetails, link) {
             },
         );
 
-    const message = await channel.send({ message: "Please react if you are available and want to sing",embeds: [embed] });
+    const message = await channel.send({ content: "Please react if you are available and want to sing",embeds: [embed] });
     message.react("✅");
 }
 

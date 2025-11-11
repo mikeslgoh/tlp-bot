@@ -71,6 +71,9 @@ class Utils {
 			];
 
 			const dateTime = moment(dateTimeStr, formats, timezone);
+
+			console.log('Formatted datetime:', dateTime.toISOString());
+
 			return dateTime.isValid() ? dateTime.toISOString() : null;
 
 		} catch (error) {
