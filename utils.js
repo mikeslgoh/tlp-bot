@@ -70,9 +70,9 @@ class Utils {
 				'YYYY-MM-DD ha'
 			];
 
-			const dateTime = moment(dateTimeStr, formats, timezone);
+			const dateTime = moment.tz(dateTimeStr, formats, timezone);
 
-			console.log('Formatted datetime:', dateTime.toISOString());
+			console.log('Formatted datetime:', dateTime.toLocaleString());
 
 			return dateTime.isValid() ? dateTime.toISOString() : null;
 
